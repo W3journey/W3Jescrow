@@ -11,8 +11,9 @@ const Hero = () => {
         </Typography>
         <p className="mt-5 text-2xl font-light">
           Customize your escrow contract by choosing the arbiter, beneficiary,
-          and fee structure that suits your needs. It&apos;s your money, your
-          rules.
+          and fee structure that suits your needs and deploy it to the
+          <span className="text-primary"> Sepolia </span>testnet. It&apos;s your
+          money, your rules.
         </p>
         <CtaButton />
       </div>
