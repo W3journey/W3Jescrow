@@ -1,6 +1,6 @@
 # W3Journey Escrow - Decentralized Escrow Application
 
-W3Journey Escrow is an Decentralized Escrow Application built as part of the Alchemy University lesson. It allows users to easily customize and deploy their own Escrow contracts.
+W3Journey Escrow is an Decentralized Escrow Application built as part of the Alchemy University lesson. It allows users to easily customize and deploy their own Escrow contracts on the Sepolia testnet.
 
 ## Technologies Used
 
