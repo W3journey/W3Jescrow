@@ -11,6 +11,7 @@ import {
   useAccount,
   useContractEvent,
   useContractWrite,
+  useNetwork,
   useWaitForTransaction,
 } from "wagmi"
 
@@ -30,6 +31,7 @@ import { Typography } from "@/components/ui/typography"
 import { EscrowContract } from "@/types"
 import { cn, truncateAddress } from "@/lib/utils"
 import { escrowAbi } from "@/constants/abi"
+import { CustomConnectButton } from "@/components/custom-connect-button"
 
 export const Contract = ({ contract }: { contract: EscrowContract }) => {
   const {
@@ -45,6 +47,7 @@ export const Contract = ({ contract }: { contract: EscrowContract }) => {
   const [approved, setApproved] = useState(isApproved)
 
   const { address: accountAddress } = useAccount()
+  const { chain } = useNetwork()
 
   const { data, isSuccess, write } = useContractWrite({
     address: address as `0x${string}`,
@@ -195,21 +198,27 @@ export const Contract = ({ contract }: { contract: EscrowContract }) => {
       </CardContent>
       <CardFooter className="flex items-center justify-center my-auto">
         {accountAddress === arbiter ? (
-          // Release Funds Button
-          <Button
-            className={cn(
-              "px-6 mt-12 mb-6 disabled:opacity-95",
-              approved && "text-success"
-            )}
-            variant={approved ? "secondary" : "default"}
-            onClick={() => write()}
-            disabled={approved}
-          >
-            <div className="flex items-center gap-2">
-              {approved ? "Released" : "Release funds"}
-              {isLoading && <RxUpdate className="w-4 h-4 animate-spin" />}
+          chain?.unsupported ? (
+            <div className="px-6 mt-12 mb-6">
+              <CustomConnectButton />
             </div>
-          </Button>
+          ) : (
+            // Release Funds Button
+            <Button
+              className={cn(
+                "px-6 mt-12 mb-6 disabled:opacity-95",
+                approved && "text-success"
+              )}
+              variant={approved ? "secondary" : "default"}
+              onClick={() => write()}
+              disabled={approved || isLoading}
+            >
+              <div className="flex items-center gap-2">
+                {approved ? "Released" : "Release funds"}
+                {isLoading && <RxUpdate className="w-4 h-4 animate-spin" />}
+              </div>
+            </Button>
+          )
         ) : (
           // Waiting for Approval Button
           <Button
