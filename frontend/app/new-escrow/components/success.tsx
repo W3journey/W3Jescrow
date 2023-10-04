@@ -1,7 +1,7 @@
 import { SetStateAction } from "react"
 import Link from "next/link"
-import { ContractTransactionReceipt } from "ethers"
 import { ExternalLinkIcon } from "@radix-ui/react-icons"
+import { TransactionReceipt } from "viem"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -15,7 +15,7 @@ import CopyButton from "@/components/ui/copy-button"
 
 interface SuccessProps {
   address: string | null
-  transaction: ContractTransactionReceipt | null
+  transaction: TransactionReceipt | undefined
   onNewContract: React.Dispatch<SetStateAction<string | null>>
 }
 const Success: React.FC<SuccessProps> = ({
@@ -35,13 +35,13 @@ const Success: React.FC<SuccessProps> = ({
         <div className="flex flex-col items-center gap-x-2 lg:flex-row">
           <p>Transaction Hash:</p>
           <Link
-            href={`https://sepolia.etherscan.io/tx/${transaction?.hash}`}
+            href={`https://sepolia.etherscan.io/tx/${transaction?.transactionHash}`}
             target="_blank"
             rel="noreferrer"
           >
             <div className="flex items-center gap-x-2">
               <span className="text-blue-500 break-all hover:underline">
-                {transaction?.hash}
+                {transaction?.transactionHash}
               </span>
               <ExternalLinkIcon className="w-4 h-4 text-muted" />
             </div>
@@ -50,13 +50,15 @@ const Success: React.FC<SuccessProps> = ({
         <div className="flex flex-col items-center gap-x-2 lg:flex-row">
           <p>Contract address:</p>
           {address && (
-            <Link
-              href={`/escrows?contract=${address}`}
-              className="text-blue-500 break-all hover:underline gap-x-4"
-            >
-              <span>{address}</span>
+            <>
+              <Link
+                href={`/escrows?contract=${address}`}
+                className="text-blue-500 break-all hover:underline gap-x-4"
+              >
+                <span>{address}</span>
+              </Link>
               <CopyButton value={address} />
-            </Link>
+            </>
           )}
         </div>
       </CardContent>

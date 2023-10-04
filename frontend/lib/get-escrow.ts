@@ -1,21 +1,24 @@
-import { Contract } from "ethers"
-
-import Escrow from "../artifacts/contracts/EscrowRegistry.sol/Escrow.json"
+import { viemPublicClient } from "@/lib/client"
+import { escrowAbi } from "@/constants/abi"
 import { EscrowContract } from "@/types"
-import { PROVIDER } from "@/constants/chains"
+import { formatEther } from "viem"
 
-export const getEscrow = async (address: string) => {
-  const contract = new Contract(address, Escrow.abi, PROVIDER)
+export const getEscrow = async (address: `0x${string}`) => {
+  const escrowData = await viemPublicClient.readContract({
+    address: address,
+    abi: escrowAbi,
+    functionName: "getContractData",
+  })
 
-  const escrowData = await contract.getContractData()
   const escrow: EscrowContract = {
     address: address,
     arbiter: escrowData[0],
     beneficiary: escrowData[1],
     depositor: escrowData[2],
-    escrowAmount: escrowData[3].toString(),
+    escrowAmount: formatEther(escrowData[3]),
     feeBps: escrowData[4].toString(),
     isApproved: escrowData[5],
   }
+
   return escrow
 }

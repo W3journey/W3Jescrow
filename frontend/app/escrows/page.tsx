@@ -9,6 +9,8 @@ import {
 } from "@/app/escrows/components/no-contract-found"
 import { EscrowContract, PromiseResult, ValidRoleQuery } from "@/types"
 
+export const dynamic = "force-dynamic"
+
 export default async function ContractsPage({
   searchParams,
 }: {
@@ -38,6 +40,7 @@ export default async function ContractsPage({
     await Promise.allSettled(
       deployedContractAddresses.map((address) => getEscrow(address))
     )
+
   const initialData = settledPromises
     .filter(isFulfilled)
     .map((result) => result.value)
@@ -53,6 +56,8 @@ export default async function ContractsPage({
   } else {
     contracts = initialData
   }
+
+  const reversedContracts = [...contracts].reverse()
 
   return (
     <section className="flex flex-col items-center justify-between min-h-screen pt-6 pb-24 ">
@@ -72,7 +77,7 @@ export default async function ContractsPage({
           </div>
         ) : (
           <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
-            {[...contracts].reverse().map((contract) => (
+            {reversedContracts.map((contract) => (
               <Contract key={contract.address} contract={contract} />
             ))}
           </div>
