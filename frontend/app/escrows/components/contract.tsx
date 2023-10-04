@@ -27,7 +27,6 @@ import { Entity } from "@/app/escrows/components/entity"
 import { Button } from "@/components/ui/button"
 import { Typography } from "@/components/ui/typography"
 
-import { useIsMounted } from "@/hooks/useIsMounted"
 import { EscrowContract } from "@/types"
 import { cn, truncateAddress } from "@/lib/utils"
 import { escrowAbi } from "@/constants/abi"
@@ -44,7 +43,6 @@ export const Contract = ({ contract }: { contract: EscrowContract }) => {
   } = contract
 
   const [approved, setApproved] = useState(isApproved)
-  // const isMounted = useIsMounted()
 
   const { address: accountAddress } = useAccount()
 
@@ -56,13 +54,13 @@ export const Contract = ({ contract }: { contract: EscrowContract }) => {
       const error = e as TransactionExecutionErrorType
       toast.error(error.shortMessage)
     },
-    onSuccess() {
-      toast.success(`Funds from ${truncateAddress(address)} released.`)
-    },
   })
 
   const { data: txReceipt, isLoading } = useWaitForTransaction({
     hash: data?.hash,
+    onSuccess() {
+      toast.success(`Funds from ${truncateAddress(address)} released.`)
+    },
   })
 
   const unwatch = useContractEvent({
@@ -75,10 +73,6 @@ export const Contract = ({ contract }: { contract: EscrowContract }) => {
     },
   })
 
-  // const arbiterFeePercentage = Number(feeBps) / 100
-  // const arbiterAmount = (Number(escrowAmount) * arbiterFeePercentage) / 100
-  // const beneficiaryAmount = Number(escrowAmount) - arbiterAmount
-
   const arbiterFeePercentage = useMemo(() => Number(feeBps) / 100, [feeBps])
 
   const arbiterAmount = useMemo(
@@ -90,8 +84,6 @@ export const Contract = ({ contract }: { contract: EscrowContract }) => {
     () => Number(escrowAmount) - arbiterAmount,
     [escrowAmount, arbiterAmount]
   )
-
-  // if (!isMounted()) return null
 
   return (
     <Card className="shadow-lg border-box bg-gradient-to-br from-card to-background hover:border-border">
