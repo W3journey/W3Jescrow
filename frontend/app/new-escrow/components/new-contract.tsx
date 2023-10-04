@@ -1,10 +1,17 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { z } from "zod"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
-import { isAddress, isError } from "ethers"
+import {
+  TransactionExecutionErrorType,
+  decodeEventLog,
+  isAddress,
+  parseEther,
+} from "viem"
+import { useAccount, useContractWrite, useWaitForTransaction } from "wagmi"
+import { toast } from "sonner"
 
 import {
   Card,
@@ -26,16 +33,17 @@ import {
 import { Separator } from "@/components/ui/separator"
 import { Slider } from "@/components/ui/slider"
 import SpinnerButton from "@/components/ui/spinner-button"
-import CopyButton from "@/components/ui/copy-button"
-import ConnectButton from "@/components/connect-button"
 import Success from "@/app/new-escrow/components/success"
+import { CustomConnectButton } from "@/components/custom-connect-button"
 
-import { useEthereum } from "@/hooks/useEthereum"
-import { toast } from "@/components/ui/use-toast"
 import { revalidateEscrowsPage } from "@/app/action/revalidateEscrowsPage"
-import { useDeployEscrowContract } from "@/hooks/useDeployEscrowContract"
+import { registryAddress } from "@/constants/contracts"
+import { escrowRegistryAbi } from "@/constants/abi"
+import { useCopyToClipboard } from "@/hooks/useCopyToClipboard"
 
-const EthAddressSchema = z.custom<string>(isAddress, "Invalid Address")
+const EthAddressSchema = z.custom<string>((val) => {
+  return typeof val === "string" ? isAddress(val) : false
+})
 
 const formSchema = z.object({
   arbiterAddr: EthAddressSchema,
@@ -48,14 +56,9 @@ const formSchema = z.object({
 })
 
 const NewContract = () => {
-  const [isLoading, setIsLoading] = useState(false)
-  const { signer, connect, accounts } = useEthereum()
-  const {
-    contractAddress,
-    setContractAddress,
-    deployEscrowContract,
-    txReceipt,
-  } = useDeployEscrowContract()
+  const [contractAddress, setContractAddress] = useState<string | null>(null)
+  const [_, copy] = useCopyToClipboard()
+  const { isConnected } = useAccount()
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -67,57 +70,49 @@ const NewContract = () => {
     },
   })
 
-  useEffect(() => {
-    if (contractAddress) {
-      toast({
-        title: "Successfully deployed",
-        description: `Address: ${contractAddress}`,
-        action: <CopyButton value={contractAddress!} />,
+  const { data, write } = useContractWrite({
+    address: registryAddress,
+    abi: escrowRegistryAbi,
+    functionName: "deployEscrowContract",
+    onError(e) {
+      const error = e as TransactionExecutionErrorType
+      toast.error(error.shortMessage)
+    },
+  })
+
+  const { data: transactionReceipt, isLoading } = useWaitForTransaction({
+    hash: data?.hash,
+    onSuccess(transactionReceipt) {
+      const deployEvent = decodeEventLog({
+        abi: escrowRegistryAbi,
+        eventName: "ContractDeployed",
+        topics: transactionReceipt.logs[0].topics,
       })
-    }
-  }, [contractAddress])
 
-  useEffect(() => {
-    connect()
-    // eslint-disable-next-line
-  }, [])
+      const newContractAddr = deployEvent.args.newContract
 
-  useEffect(() => {
-    if (accounts.length) {
-      connect()
-    }
-    // eslint-disable-next-line
-  }, [accounts])
+      revalidateEscrowsPage()
+      setContractAddress(newContractAddr)
+      toast.success("Successfully deployed", {
+        action: {
+          label: "Copy Address",
+          onClick: () => copy(newContractAddr),
+        },
+      })
+    },
+  })
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
-    try {
-      setIsLoading(true)
+    const beneficiary = values.beneficiaryAddr
+    const arbiter = values.arbiterAddr
+    const feeBps = BigInt(values.arbiterFee * 100)
+    const amount = values.amount
 
-      const beneficiary = values.beneficiaryAddr
-      const arbiter = values.arbiterAddr
-      const arbiterFee = values.arbiterFee
-      const amount = values.amount
-
-      await deployEscrowContract(arbiter, beneficiary, arbiterFee, amount)
-      form.reset()
-      revalidateEscrowsPage()
-    } catch (error) {
-      if (isError(error, "ACTION_REJECTED")) {
-        toast({
-          variant: "destructive",
-          description: "User rejected.",
-        })
-      } else {
-        console.log("Unexpected error:", error)
-        toast({
-          variant: "destructive",
-          title: "Unexpected error.",
-          description: "Please try again.",
-        })
-      }
-    } finally {
-      setIsLoading(false)
-    }
+    write?.({
+      args: [arbiter as `0x${string}`, beneficiary as `0x${string}`, feeBps],
+      value: parseEther(amount),
+    })
+    form.reset()
   }
 
   return (
@@ -225,20 +220,21 @@ const NewContract = () => {
                     </FormItem>
                   )}
                 />
-                {signer && (
+                {isConnected && (
                   <SpinnerButton
                     className="mt-5 space-x-2 font-semibold md:mt-0 w-fit md:col-span-2 place-self-center bg-gradient-to-r from-primary to-accent text-accent-foreground"
-                    disabled={!signer}
+                    disabled={isLoading || !write}
                     loading={isLoading}
+                    type="submit"
                   >
                     Create Escrow
                   </SpinnerButton>
                 )}
               </form>
             </Form>
-            {!signer && (
+            {!isConnected && (
               <div className="flex justify-center pt-16 ">
-                <ConnectButton />
+                <CustomConnectButton />
               </div>
             )}
           </CardContent>
@@ -246,7 +242,7 @@ const NewContract = () => {
       ) : (
         <Success
           address={contractAddress}
-          transaction={txReceipt}
+          transaction={transactionReceipt}
           onNewContract={setContractAddress}
         />
       )}

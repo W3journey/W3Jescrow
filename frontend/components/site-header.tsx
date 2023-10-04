@@ -5,7 +5,8 @@ import { MainNav } from "@/components/main-nav"
 import MobileNav from "@/components/mobile-nav"
 import ThemeToggle from "@/components/theme-toggle"
 import { buttonVariants } from "@/components/ui/button"
-import ConnectButton from "@/components/connect-button"
+import { ConnectButton } from "@rainbow-me/rainbowkit"
+import { CustomConnectButton } from "@/components/custom-connect-button"
 
 export function SiteHeader() {
   return (
@@ -14,10 +15,12 @@ export function SiteHeader() {
         <MainNav items={siteConfig.mainNav} />
 
         <div className="flex items-center justify-end gap-4">
-          <ConnectButton
-            className="rounded-full bg-accent/30"
-            variant={"ghost"}
-          />
+          <CustomConnectButton chainStatus="none" showBalance={false} />
+          {/* <ConnectButton
+            chainStatus="none"
+            showBalance={false}
+            accountStatus={"address"}
+          /> */}
           <nav className="items-center hidden space-x-1 md:flex">
             <Link
               href={siteConfig.links.github}

@@ -8,8 +8,11 @@ W3Journey Escrow is an Decentralized Escrow Application built as part of the Alc
 - [Hardhat](https://hardhat.org/)
 - [shadcn/ui](https://ui.shadcn.com/)
 - [Tailwind CSS](https://tailwindcss.com/)
-- [ethers.js](https://docs.ethers.org/v6/)
+- [RainbowKit](https://www.rainbowkit.com/)
+- [wagmi](https://wagmi.sh/)
+- [viem](https://viem.sh/)
 - [Zod](https://zod.dev/)
+- [Sonner](https://sonner.emilkowal.ski/)
 - [TypeScript](https://www.typescriptlang.org/)
 
 ## Getting Started
@@ -24,7 +27,7 @@ To run the project locally, follow these steps:
 
 4. `cd` into the `frontend` directory and run `npm install`
 
-5. Set up environment variables: `ALCHEMY_API_KEY=YOUR_API_KEY`.
+5. Set up environment variables: `NEXT_PUBLIC_ALCHEMY_API_KEY=YOUR_API_KEY` & `NEXT_PUBLIC_WC_PROJECT_ID`.
 
 6. Run the development server: `npm run dev`
 

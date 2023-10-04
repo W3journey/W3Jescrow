@@ -1,12 +1,18 @@
 "use client"
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useMemo, useState } from "react"
 import Link from "next/link"
-import { formatEther, isError, BaseContract } from "ethers"
 import { FaBalanceScale, FaEthereum, FaFileUpload } from "react-icons/fa"
 import { FaHandHoldingDollar } from "react-icons/fa6"
 import { RxUpdate } from "react-icons/rx"
 import { ExternalLinkIcon } from "@radix-ui/react-icons"
-import Escrow from "@/artifacts/contracts/EscrowRegistry.sol/Escrow.json"
+import { toast } from "sonner"
+import { TransactionExecutionErrorType } from "viem"
+import {
+  useAccount,
+  useContractEvent,
+  useContractWrite,
+  useWaitForTransaction,
+} from "wagmi"
 
 import {
   Card,
@@ -19,15 +25,12 @@ import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { Entity } from "@/app/escrows/components/entity"
 import { Button } from "@/components/ui/button"
-
-import { useEthereum } from "@/hooks/useEthereum"
-import { useIsMounted } from "@/hooks/useIsMounted"
-import { useContractWrite } from "@/hooks/useContractWrite"
-import { useApprovedEvent } from "@/hooks/useApprovedEvent"
-import { toast } from "@/components/ui/use-toast"
-import { EscrowContract } from "@/types"
 import { Typography } from "@/components/ui/typography"
+
+import { useIsMounted } from "@/hooks/useIsMounted"
+import { EscrowContract } from "@/types"
 import { cn, truncateAddress } from "@/lib/utils"
+import { escrowAbi } from "@/constants/abi"
 
 export const Contract = ({ contract }: { contract: EscrowContract }) => {
   const {
@@ -41,77 +44,54 @@ export const Contract = ({ contract }: { contract: EscrowContract }) => {
   } = contract
 
   const [approved, setApproved] = useState(isApproved)
-  const [approvedTx, setApprovedTx] = useState("")
-  const isMounted = useIsMounted()
-  const { provider, signer, accountAddress, connect, accounts } = useEthereum()
+  // const isMounted = useIsMounted()
 
-  const { status, writeToContract } = useContractWrite({
-    address: address,
-    abi: Escrow.abi,
-    signer: signer,
+  const { address: accountAddress } = useAccount()
+
+  const { data, isSuccess, write } = useContractWrite({
+    address: address as `0x${string}`,
+    abi: escrowAbi,
+    functionName: "approve",
+    onError(e) {
+      const error = e as TransactionExecutionErrorType
+      toast.error(error.shortMessage)
+    },
+    onSuccess() {
+      toast.success(`Funds from ${truncateAddress(address)} released.`)
+    },
   })
-  useApprovedEvent(address, Escrow.abi, setApproved)
+
+  const { data: txReceipt, isLoading } = useWaitForTransaction({
+    hash: data?.hash,
+  })
+
+  const unwatch = useContractEvent({
+    address: address as `0x${string}`,
+    abi: escrowAbi,
+    eventName: "Approved",
+    listener() {
+      setApproved(true)
+      unwatch?.()
+    },
+  })
+
+  // const arbiterFeePercentage = Number(feeBps) / 100
+  // const arbiterAmount = (Number(escrowAmount) * arbiterFeePercentage) / 100
+  // const beneficiaryAmount = Number(escrowAmount) - arbiterAmount
+
+  const arbiterFeePercentage = useMemo(() => Number(feeBps) / 100, [feeBps])
 
   const arbiterAmount = useMemo(
-    () => (BigInt(escrowAmount) * BigInt(feeBps)) / BigInt(10_000),
-    [escrowAmount, feeBps]
+    () => (Number(escrowAmount) * arbiterFeePercentage) / 100,
+    [escrowAmount, arbiterFeePercentage]
   )
+
   const beneficiaryAmount = useMemo(
-    () => BigInt(escrowAmount) - arbiterAmount,
+    () => Number(escrowAmount) - arbiterAmount,
     [escrowAmount, arbiterAmount]
   )
 
-  /**
-   * @param {unknown} error - The error object.
-   */
-  const handleApprovalError = useCallback((error: unknown) => {
-    if (isError(error, "ACTION_REJECTED")) {
-      toast({
-        variant: "destructive",
-        description: "User rejected.",
-      })
-    } else {
-      toast({
-        variant: "destructive",
-        title: "There was a problem with your request.",
-        description: "Please try again.",
-      })
-      console.warn("Approval failed:", error)
-    }
-  }, [])
-
-  const approve = useCallback(async () => {
-    try {
-      await writeToContract("approve")
-    } catch (error) {
-      handleApprovalError(error)
-    }
-  }, [writeToContract, handleApprovalError])
-
-  useEffect(() => {
-    const fetchTxWithApproval = async () => {
-      if (provider) {
-        const contract = new BaseContract(address, Escrow.abi, provider)
-
-        const events = await contract.queryFilter("Approved")
-        const approvalTx = events[0].transactionHash
-        setApprovedTx(approvalTx)
-      }
-    }
-
-    if (approved) {
-      fetchTxWithApproval()
-    }
-  }, [approved, address, provider])
-
-  useEffect(() => {
-    if (accounts.length) {
-      connect()
-    }
-    // eslint-disable-next-line
-  }, [accounts])
-
-  if (!isMounted()) return null
+  // if (!isMounted()) return null
 
   return (
     <Card className="shadow-lg border-box bg-gradient-to-br from-card to-background hover:border-border">
@@ -138,9 +118,9 @@ export const Contract = ({ contract }: { contract: EscrowContract }) => {
             <Badge variant={approved ? "success" : "pending"}>
               {approved ? "Approved" : "waiting for approval"}
             </Badge>
-            {approvedTx && (
+            {isSuccess && (
               <Link
-                href={`https://sepolia.etherscan.io/tx/${approvedTx}`}
+                href={`https://sepolia.etherscan.io/tx/${data?.hash}`}
                 target="_blank"
                 rel="noreferrer"
               >
@@ -172,9 +152,9 @@ export const Contract = ({ contract }: { contract: EscrowContract }) => {
 
         <Entity
           className="col-start-3 row-start-3"
-          value={formatEther(escrowAmount)}
+          value={escrowAmount}
           name="Amount"
-          description={`${formatEther(escrowAmount)} ETH`}
+          description={`${escrowAmount} ETH`}
           icon={FaEthereum}
         />
 
@@ -192,7 +172,7 @@ export const Contract = ({ contract }: { contract: EscrowContract }) => {
               className="z-20 w-fit"
               variant={approved ? "success" : "pending"}
             >
-              {formatEther(arbiterAmount)} ETH
+              {arbiterAmount} ETH
             </Badge>
           </div>
         )}
@@ -209,7 +189,7 @@ export const Contract = ({ contract }: { contract: EscrowContract }) => {
             className="z-20 w-fit"
             variant={approved ? "success" : "pending"}
           >
-            {formatEther(beneficiaryAmount)} ETH
+            {beneficiaryAmount} ETH
           </Badge>
         </div>
 
@@ -222,7 +202,7 @@ export const Contract = ({ contract }: { contract: EscrowContract }) => {
         />
       </CardContent>
       <CardFooter className="flex items-center justify-center my-auto">
-        {accounts[0] === arbiter.toLowerCase() ? (
+        {accountAddress === arbiter ? (
           // Release Funds Button
           <Button
             className={cn(
@@ -230,14 +210,12 @@ export const Contract = ({ contract }: { contract: EscrowContract }) => {
               approved && "text-success"
             )}
             variant={approved ? "secondary" : "default"}
-            onClick={approve}
-            disabled={approved || status === "pending"}
+            onClick={() => write()}
+            disabled={approved}
           >
             <div className="flex items-center gap-2">
               {approved ? "Released" : "Release funds"}
-              {status === "pending" && (
-                <RxUpdate className="w-4 h-4 animate-spin" />
-              )}
+              {isLoading && <RxUpdate className="w-4 h-4 animate-spin" />}
             </div>
           </Button>
         ) : (

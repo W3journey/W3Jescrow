@@ -1,19 +1,14 @@
-import { Contract } from "ethers"
-
-import EscrowRegistry from "../artifacts/contracts/EscrowRegistry.sol/EscrowRegistry.json"
 import { registryAddress } from "@/constants/contracts"
-import { PROVIDER } from "@/constants/chains"
+import { viemPublicClient } from "@/lib/client"
+import { escrowRegistryAbi } from "@/constants/abi"
 
 export const getContracts = async () => {
   try {
-    const registryContract = new Contract(
-      registryAddress,
-      EscrowRegistry.abi,
-      PROVIDER
-    )
-
-    const escrowAddresses =
-      (await registryContract.getEscrowAddresses()) as string[]
+    const escrowAddresses = await viemPublicClient.readContract({
+      address: registryAddress,
+      abi: escrowRegistryAbi,
+      functionName: "getEscrowAddresses",
+    })
 
     return escrowAddresses
   } catch (error) {

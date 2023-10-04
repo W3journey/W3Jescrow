@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/tooltip"
 
 interface CopyButtonProps {
-  value: string
+  value: string | `0x${string}`
   delayDuration?: number
 }
 
